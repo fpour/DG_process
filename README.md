@@ -1,10 +1,9 @@
 Dynamic Graph Processing
 =====
 Provides
-  1. provides a data-loader to download a suite of dynamic graph datasets.
-  2. provides an evaluator for the suit of dynamic graph datasets
-  3. will provide tools to benchmark graph models
-example code snippets
+  1. A data-loader to download a suite of dynamic graph datasets.
+  2. An evaluator for the suit of dynamic graph datasets
+  3. Tools to benchmark graph models, example code snippets, tutorials, etc. (ongoing...)
 ----------------------------
 
 ## To install
