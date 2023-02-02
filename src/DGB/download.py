@@ -53,22 +53,10 @@ check_dict = {
     "us_Legis": DataSetName.USLegis,
     "wikipedia": DataSetName.Wikipedia,
 }
-# dictionary for all data_sets and files associated with them
-sub_dict = {
-    "CanParl": ["CanParl.csv", "ml_CanParl.csv", "ml_CanParl.npy", "ml_CanParl_node.npy"],
-    "Contacts": ["Contacts.csv", "ml_Contacts.csv", "ml_Contacts.npy", "ml_Contacts_node.npy"],
-    "enron": ["ml_enron.csv", "ml_enron.npy", "ml_enron_node.npy"],
-    "Flights": ["Flights.csv", "ml_Flights.csv", "ml_Flights.npy", "ml_Flights_node.npy"],
-    "lastfm": ["lastfm.csv", "ml_lastfm.csv", "ml_lastfm.npy", "ml_lastfm_node.npy"],
-    "mooc": ["ml_mooc.csv", "ml_mooc.npy", "ml_mooc_node.npy", "mooc.csv"],
-    "reddit": ["ml_reddit.csv", "ml_reddit.npy", "ml_reddit_node.npy", "reddit.csv"],
-    "SocialEvo": ["ml_SocialEvo.csv", "ml_SocialEvo.npy", "ml_SocialEvo_node.npy"],
-    "uci": ["ml_uci.csv", "ml_uci.npy", "ml_uci_node.npy"],
-    "UNtrade": ["ml_UNtrade.csv", "ml_UNtrade.npy", "ml_UNtrade_node.npy", "UNtrade.csv"],
-    "UNvote": ["ml_UNvote.csv", "ml_UNvote.npy", "ml_UNvote_node.npy", "UNvote.csv"],
-    "USLegis": ["ml_USLegis.csv", "ml_USLegis.npy", "ml_USLegis_node.npy", "USLegis.csv"],
-    "wikipedia": ["ml_wikipedia.csv", "ml_wikipedia.npy", "ml_wikipedia_node.npy", "wikipedia.csv"]
-}
+
+
+def extensions(name):
+    return [f"ml_{name}.csv", f"ml_{name}.npy", f"ml_{name}_node.npy", f"{name}.csv"]
 
 
 class BColors:
@@ -84,8 +72,6 @@ class BColors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-
-
 
 
 class Data:
@@ -115,9 +101,12 @@ def download_all():
         _ = TemporalDataSets(data_name=n, skip_download_prompt=True)
     print("missing file download complete")
 
-def force_download_all():
+
+def force_download_all(data_root: str = "data"):
     """
     removes all data set files and redownloads all data_sets that have not been downloaded yet
+    data_root: str, optional,
+        removes folder and forces a redownload of all.
     """
 
     print(
@@ -133,38 +122,6 @@ def force_download_all():
         download_all()
     else:
         print("download cancelled")
-
-
-
-
-
-
-def unzip_delete():
-    """
-    unzips zenodo files and deletes unnecessary files
-    """
-    os.remove("./md5sums.txt") if os.path.exists("./md5sums.txt") else None
-
-    for filename in Path("../..").glob("*.tmp"):
-        filename.unlink()
-
-    if not os.path.exists("./TG_network_datasets.zip"):
-        print(f"{BColors.FAIL}DOWNLOAD FAILED{BColors.ENDC}, TG_network_datasets not found")
-        return
-
-    with zipfile.ZipFile("TG_network_datasets.zip", 'r') as zip_ref:
-        zip_ref.extractall()
-    try:
-        os.remove("TG_network_datasets.zip")
-    except OSError:
-        pass
-    dirpath = Path('__MACOSX')
-    if dirpath.exists():
-        shutil.rmtree(dirpath)
-    try:
-        os.remove("md5sums.txt")
-    except OSError:
-        pass
 
 
 def print_dataset_names():
@@ -188,7 +145,14 @@ class TemporalDataSets(object):
     A class used to create data set objects
     """
 
-    def __init__(self, data_name: str = None, data_set_statistics: bool = True, skip_download_prompt: bool = False):
+    def __init__(self,
+                 data_name: str = None,
+                 data_set_statistics: bool = True,
+                 skip_download_prompt: bool = False,
+                 sub_folder: bool = True,
+                 sub_folder_name: str = None,
+                 folder_name: str = "data",
+                 ):
         """
         Parameters
         ----------
@@ -199,11 +163,29 @@ class TemporalDataSets(object):
             False to suppress all data set statistics prints
         skip_download_prompt : bool,optional
             skip download prompt if data not found and move straight to downloading
+        sub_folder: bool, optinal,
+            will the project have sub folders for each of the csv? Sub_folders will contain downloaded process files as well
+        sub_folder_name: str, optinal,
+            to have custom names for the subfolders using a mapping of {data file name : custom name } example: { "Mooc" : "New_Mooc" }
+        folder_name: str = None:
+            name of the folder where the data will be stored. default is data.
         """
 
+        if not sub_folder and sub_folder_name:
+            print(BColors.WARNING + "sub_folder_name will not be used as sub_folder is false so there will not be a "
+                                    "sub folder" + BColors.ENDC)
+
         self.data_str = data_name
-        self.base_directory = f"TG_network_datasets/{self.data_str}"
-        self.data_root = "TG_network_datasets"
+        if not sub_folder_name:
+            self.base_directory = f"{folder_name}/{check_dict.get(self.data_str, '' )}"
+        else:
+            self.base_directory = f"{folder_name}/{sub_folder_name}"
+
+        if not sub_folder:
+            self.base_directory = f"{folder_name}"
+
+        self.sub_folder = sub_folder
+        self.data_root = folder_name
         self.exception_msg_process = BColors.FAIL + "please run process() method before retrieving training data" + BColors.ENDC
         self.data_set_statistics = data_set_statistics
         self.url = f"https://zenodo.org/record/{zen_id}"
@@ -227,9 +209,9 @@ class TemporalDataSets(object):
                 sys.stdout.write(BColors.WARNING + "program will continue but program is unsafe \n" + BColors.ENDC)
 
         else:
-            self.data_list = [check_dict.get(data_name)]  # original name
-            self.url += f"/files/{self.data_list[0].value}.zip?download=1"
-            self.path_download = f"./{self.data_list[0].value}.zip"
+            self.data_csv_name = check_dict.get(data_name)  # original name
+            self.url += f"/files/{self.data_csv_name.value}.zip?download=1"
+            self.path_download = f"./{self.data_csv_name.value}.zip"
 
         self.check_downloaded()
 
@@ -238,7 +220,7 @@ class TemporalDataSets(object):
         removes unnecessary files after download
         """
         try:
-            os.remove(f"{self.data_list[0].value}.zip")
+            os.remove(f"{self.data_csv_name.value}.zip")
         except OSError:
             pass
         dirpath = Path('__MACOSX')
@@ -260,7 +242,7 @@ class TemporalDataSets(object):
             inp = input('Will you download the dataset(s) now? (y/N)\n').lower()
         if inp == 'y':
             print(f"{BColors.WARNING}Download started, this might take a while . . . {BColors.ENDC}")
-            print(f"Dataset title: {self.data_list[0].value}")
+            print(f"Dataset title: {self.data_csv_name.value}")
             r = requests.get(self.url, stream=True)
             with open(self.path_download, 'wb') as f:
                 total_length = int(r.headers.get('content-length'))
@@ -270,14 +252,33 @@ class TemporalDataSets(object):
                         f.flush()
 
             os.makedirs(f"./{self.data_root}", exist_ok=True)
+            # removes folder if folder is specififed.
+            if self.sub_folder:
+                try:
+                    shutil.rmtree(f"./{self.base_directory}")
+                except:
+                    pass
+                os.mkdir(self.base_directory)
 
-            try:
-                shutil.rmtree(f"./{self.data_root}/{self.data_list[0].value}")
-            except:
-                pass
+            else:
+                for file in extensions(self.data_csv_name.value):
+                    try:
+                        os.remove(f"./{self.base_directory}/{file}")
+                    except OSError:
+                        pass
 
-            with zipfile.ZipFile(self.path_download, 'r') as zip_ref:
-                zip_ref.extractall(f"./{self.data_root}")
+            with zipfile.ZipFile(self.path_download, 'r') as zip_file:
+                for member in zip_file.namelist():
+                    filename = os.path.basename(member)
+                    # skip directories
+                    if not filename:
+                        continue
+
+                    # copy file (taken from zipfile's extract)
+                    source = zip_file.open(member)
+                    target = open(os.path.join(f"./{self.base_directory}", filename), "wb")
+                    with source, target:
+                        shutil.copyfileobj(source, target)
 
             self.delete_single()
             print(f"{BColors.OKGREEN}Download completed {BColors.ENDC}")
@@ -296,14 +297,13 @@ class TemporalDataSets(object):
             return
         list_data_not_found = []
 
-        for data_set_name in self.data_list:
-            data_found = True
-            for file_name in sub_dict[str(data_set_name.value)]:
-                path = f"./{self.data_root}/{str(data_set_name.value)}/{file_name}"
-                if not Path(path).exists():
-                    data_found = False
-            if not data_found:
-                list_data_not_found.append(data_set_name.value)
+        data_found = True
+        for file_name in extensions(self.data_csv_name.value):
+            path = f"./{self.base_directory}/{file_name}"
+            if not Path(path).exists():
+                data_found = False
+        if not data_found:
+            list_data_not_found.append(self.data_csv_name.value)
         if not list_data_not_found:
             if self.data_set_statistics:
                 print(f"All data found for {BColors.OKGREEN}{self.data_str}{BColors.ENDC}")
@@ -533,5 +533,3 @@ class TemporalDataSets(object):
             'new_node_test_data': new_node_test_data
         }
         return data_splits
-
-
