@@ -6,13 +6,13 @@ if __name__ == "__main__":
     '''
     #! step 1: download dataset from url, select specific dataset using str name 
     '''
+    print("Running main for DGB")
     input_list = "canparl" #"enron"
-    enron_tgb = TemporalDataSets(data_name=input_list)
+    enron_tgb = TemporalDataSets(data_name=input_list, sub_folder_name="hello_kity")
     
     #* to do, make a list dataset function --> Abu  DONE 
     #? should be called download_all, this will download all TG datasets  --> Abu DONE 
     #example_data.download_all()
-
 
     '''
     #! step 2: process the datasets in a TGL friendly way and act as input to ML methods
